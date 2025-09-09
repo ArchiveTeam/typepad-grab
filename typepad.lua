@@ -408,6 +408,7 @@ allowed = function(url, parenturl)
     or string.match(url, "^https?://[^/]+/sitelogout")
     or string.match(url, "^https?://[^/]+/%.services/sitelogin")
     or string.match(url, "^https?://[^/]+/%.services/sitelogout")
+    or string.match(url, "^https?://[^/]+/%.?services/connect/profile_module")
     or string.match(url, "%?no_prefetch=1$")
     or string.match(url, "%?cid=")
     or (
