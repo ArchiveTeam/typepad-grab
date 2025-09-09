@@ -35,6 +35,13 @@ for _, site in pairs(cjson.decode(os.getenv("sites"))) do
   sites[site] = true
 end
 
+local sizes = {
+  ["pi"] = {50, 75, 115, 120, 200, 320, 350, 500, 640, 800, 1024, 1200, 2000},
+  ["wi"] = {50, 75, 100, 115, 120, 150, 200, 250, 300, 320, 350, 400, 450, 500, 550, 580, 600, 640, 650, 700, 750, 800, 850, 900, 950, 1024},
+  ["hi"] = {75, 250},
+  ["si"] = {16, 20, 50, 75, 115, 120, 150, 220, 250},
+}
+
 site_included = function(domain)
   local temp = string.match(domain, "^www%.(.+)$")
   if temp then
@@ -122,28 +129,105 @@ item_patterns = {
         return nil
       end
       local domain_item = get_domain_item(s)
-      if not domain_item then
-        return nil
+      if domain_item then
+        return {["value"]=domain_item}
       end
-      return {["value"]=domain_item}
     end
   },
   ["^https?://([^/]+/%.a/.+)$"]={
     ["type"]="asset",
     ["additional"]=function(s)
-      local temp = string.match(s, "^([^/]+/%.a/[0-9a-f]+)%-[0-9a-zA-Z]+$")
+      local temp, ending = string.match(s, "^([^/]+/%.a/[0-9a-f]+)%-([0-9a-zA-Z]+)$")
+      if ending
+        and ending ~= "pi"
+        and ending ~= "popup"
+        and ending ~= "50si"
+        and not string.match(ending, "^[0-9]+[pw]i$") then
+        error("Found unsupported asset " .. s .. ".")
+      end
+      if not temp then
+        temp = string.match(s, "^([^/]+/%.a/[0-9a-f]+)$")
+      end
       if temp then
         s = temp
       end
       if get_domain_item(s) then
         return {["value"]=s}
       end
-      return nil
     end
+  },
+  ["^https?://(up[0-9]?%.typepad%.com/.+)$"]={
+    ["type"]="asset",
+    ["additional"]=function(s)
+      local temp = string.match(s, "^[^/]+/([0-9a-f]+)%-[0-9a-zA-Z]+$")
+      if not temp then
+        temp = string.match(s, "^[^/]+/([0-9a-f]+)$")
+      end
+      local server_name = string.match(s, "^([a-z]+)")
+      local ending = string.match(s, "%-([0-9a-z]+)$")
+      if ending
+        and (
+          (
+            server_name == "up"
+            and ending ~= "pi"
+            and not string.match(ending, "^[0-9]+si$")
+          )
+          or (
+            server_name == "a"
+            and ending ~= "pi"
+            and ending ~= "popup"
+            and not string.match(ending, "^[0-9]+[pw]i$")
+          )
+        ) then
+        error("Found unsupported asset " .. s .. ".")
+      end
+      if temp then
+        return {["value"]=server_name .. "1.typepad.com/" .. temp}
+      end
+    end
+  },
+  ["^https?://(a[0-9]?%.typepad%.com/.+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(up[0-9]?%.typepad%.com/.+)$"
+  },
+  ["^https?://(.+/photos/.-%.[^/%.%?&]+)$"]={
+    ["type"]="asset",
+    ["additional"]=function(s)
+      if string.match(s, "%.html%?") then
+        return nil
+      end
+      local extension = string.match(s, "%.([^/%.%?&]+)$")
+      if extension ~= "html" and get_domain_item(s) then
+        return {["value"]=s}
+      end
+    end
+  },
+  ["^https?://(.+/images/.-%.[^/%.%?&]+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
+  },
+  ["^https?://(.+/files/.-%.[^/%.%?&]+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
+  },
+  ["^https?://(.+/%.a/.-%.[^/%.%?&]+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
+  },
+  ["^https?://(.+/%.shared/.-%.[^/%.%?&]+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
+  },
+  ["^https?://([^/]+/[^/%.%?&;=]+%.[0-9a-zA-Z]+)$"]={
+    ["type"]="asset",
+    ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
   },
   ["^https?://([^/]+/%.shared/.+)$"]={
     ["type"]="asset",
     ["additional"]=function(s)
+      if string.match(s, "^[^/]+/%.shared/image%.html") then
+        return nil
+      end
       if get_domain_item(s) then
         return {["value"]=s}
       end
@@ -151,21 +235,21 @@ item_patterns = {
   },
   ["^https?://([^/]+/cdn%-cgi/.+)$"]={
     ["type"]="asset",
-    ["additional"]=function(s)
-      if get_domain_item(s) then
-        return {["value"]=s}
-      end
-    end
+    ["additional"]="^https?://([^/]+/%.shared/.+)$"
   },
   ["^https?://([^/]+/.+)$"]={
     ["type"]="article",
     ["additional"]=function(s)
       if not string.match(s, "%.html$")
+        and not string.match(s, "%.html[^0-9a-zA-Z]")
         and not string.match(s, "/$") then
         return nil
       end
       if string.match(s, "[^/]+/%.a/")
-        or string.match(s, "[^/]+/%.shared/")
+        or (
+          string.match(s, "[^/]+/%.shared/")
+          and not string.match(s, "^[^/]+/%.shared/image%.html")
+        )
         or string.match(s, "[^/]+/cdn%-cgi/") then
         return nil
       end
@@ -185,7 +269,7 @@ item_patterns = {
       end
       local path = string.match(s, "^[^/]+/(.+)$")
       if not path then
-        error("Could not separate out path from URL.")
+        return nil
       end
       return {
         ["value"]=blog .. ":" .. path,
@@ -203,12 +287,28 @@ for pattern, data in pairs(item_patterns) do
   if not data["additional"] then
     data["additional"] = function(s) return {["value"]=s} end
   end
+  if type(data["additional"]) == "string" then
+    data["additional"] = item_patterns[data["additional"]]["additional"]
+    if not data["additional"] then
+      error("Could not initialize item patterns.")
+    end
+  end
   item_patterns[pattern] = data
 end
 
 extraction_patterns = {
   ["^https?://([^/]+)/"]=item_patterns["^https?://([^/]+)/$"],
-  ["^https?://profile%.typepad%.com/([0-9a-zA-Z]+)"]=item_patterns["^https?://profile%.typepad%.com/([0-9a-zA-Z]+)$"]
+  ["^https?://profile%.typepad%.com/([0-9a-zA-Z]+)"]=item_patterns["^https?://profile%.typepad%.com/([0-9a-zA-Z]+)$"],
+  ["^https?://([^/]+)"]={
+    ["type"]="maybeblog",
+    ["additional"]=function(s)
+      if string.match(s, "^[^/%.]+%.typepad%.com$")
+        or s == context["blog"] then
+        return nil
+      end
+      return {["value"]=s}
+    end
+  },
 }
 for k, v in pairs(item_patterns) do
   extraction_patterns[k] = v
@@ -303,8 +403,27 @@ allowed = function(url, parenturl)
   if string.match(url, "'%s*%+%s*'")
     or string.match(url, "/%*")
     or string.match(url, "/svc=blogs/blog_id=")
-    or string.match(url, "^https?://www%.typepad%.com/sitelogin")
-    or string.match(url, "^https?://www%.typepad%.com/sitelogout") then
+    or string.match(url, "^https?://[^/]+/sitelogin")
+    or string.match(url, "^https?://[^/]+/sitelogout")
+    or string.match(url, "^https?://[^/]+/%.services/sitelogin")
+    or string.match(url, "^https?://[^/]+/%.services/sitelogout")
+    or string.match(url, "%?cid=")
+    or (
+      (
+        item_type == "blog"
+        or item_type == "article"
+      )
+      and parenturl
+      and string.match(parenturl, "^(.-/page/[0-9]+/)$") == string.match(url, "^(.-/page/[0-9]+/)")
+      and string.match(url, "^.-/page/[0-9]+/.")
+    )
+    or (
+      item_type == "profile"
+      and (
+        string.match(url, "/events%?start_token=$")
+        or string.match(url, "/activity/atom%.xml$")
+      )
+    ) then
     return false
   end
 
@@ -313,8 +432,14 @@ allowed = function(url, parenturl)
     match = get_item_data(url, pattern, data)
     if match then
       local new_item = match["type"] .. ":" .. match["value"]
-      local to_skip = match["type"] ~= "blog"
+      local to_skip = match["type"] ~= "blog" and match["type"] ~= "maybeblog"
       if new_item ~= item_name then
+        if match["type"] == "article" then
+          local dir = string.match(url, "^(https?://[^/]+/.+/).")
+          if dir then
+            allowed(dir, parenturl)
+          end
+        end
         discover_item(discovered_items, new_item)
       elseif to_skip then
         return true
@@ -422,6 +547,12 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if not string.match(newurl, "^https?://") then
       return nil
     end
+    if string.match(newurl, "[\r\n]") then
+      for new in string.gmatch(newurl, "([^\r\n]+)") do
+        check(new)
+      end
+      return nil
+    end
     local post_body = nil
     local post_url = nil
     if not newurl then
@@ -446,6 +577,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       for s in string.gmatch(newurl, "([^,]+)") do
         check(urlparse.absolute(newurl, s))
       end
+    end
+    if string.match(newurl, "image%.html%?.") then
+      check(urlparse.absolute(newurl, string.match(newurl, "%?(.+)$")))
     end
     if not processed(url_)
       and not processed(url_ .. "/")
@@ -556,26 +690,44 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     local count = 0
     for _ in pairs(data) do
       count = count + 1
-    end 
+    end
     return count
   end
 
   if item_type == "asset" then
     local base = string.match(url, "^(https?://[^/]+/%.a/[0-9a-f]+)")
-    check(base)
+    if not base then
+      base = string.match(url, "^(https?://a[0-9]%.typepad%.com/[0-9a-f]+)")
+    end
     if base then
+      check(base)
       for _, s in pairs({
         "pi",
         "popup",
-        "800wi",
-        "320wi",
-        "500wi",
-        "300wi",
-        --"250wi",
-        "200wi",
-        "1024wi",
+        "50si"
       }) do
         check(base .. "-" .. s)
+      end
+      for _, stype in pairs({"pi", "wi"}) do
+        for _, n in pairs(sizes[stype]) do
+          check(base .. "-" .. tostring(n) .. stype)
+        end
+      end
+    end
+    local server, image_id = string.match(url, "^https?://([a-z]+)[0-9]?%.typepad%.com/([0-9a-f]+)")
+    if (server == "a" or server == "up") and base then
+      for i = 1 , 7 do
+        check("https://" .. server .. tostring(i) .. ".typepad.com/" .. base)
+      end
+    end
+    if server == "up" then
+      for _, s in pairs({
+        "pi",
+      }) do
+        check(urlparse.absolute(url, "/" .. base .. "-" .. s))
+      end
+      for _, n in pairs(sizes["si"]) do
+        check(urlparse.absolute(url, "/" .. base .. "-" .. tostring(n) .. "si"))
       end
     end
   end
@@ -611,21 +763,47 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
   if allowed(url)
     and status_code < 300
+    and (
+      item_type ~= "asset"
+      or string.match(url, "%-popup$")
+    )
     and not string.match(url, "%.jpg$")
     and not string.match(url, "%.png$")
     and not string.match(url, "%.gif$") then
     html = read_file(file)
     if item_type == "blog"
       and string.match(url, "^https?://[^/]+/$") then
-      for _, pattern in pairs({
-        "blog_id=([0-9]+)",
-        "/%.services/blog/([0-9a-f]+)"
+      local user_id = string.match(html, "user_id=([0-9]+)")
+      if user_id then
+        discover_item(discovered_items, "userid:" .. user_id)
+      end
+      local profile_s = string.match(html, "profile_module[^\"]*[%?&]user_id=([^&\"]+)")
+      if profile_s then
+        check("https://profile.typepad.com/" .. profile_s)
+      end
+      for path, patterns in pairs({
+        ["/t/rsd/"]={
+          "%?blog_id=([0-9]+)"
+        },
+        ["/services/rsd/"]={
+          "/%.services/blog/([0-9a-f]+)",
+          "ga%('Typepad%.set', 'dimension1', '([0-9a-f]+)'%);",
+          "/services/rsd/([0-9a-f]+)",
+          "/t/rsd/([0-9a-f]+)"
+        }
       }) do
-        local blog_id = string.match(html, pattern)
-        if blog_id then
-          ids[blog_id] = true
+        local found = false
+        for _, pattern in pairs(patterns) do
+          local blog_id = string.match(html, pattern)
+          if blog_id then
+            ids[blog_id] = true
+            check("https://www.typepad.com" .. path .. blog_id)
+          end
+          found = true
         end
-        check("https://www.typepad.com/t/rsd/" .. blog_id)
+        if not found then
+          error("Could not find a blog ID.")
+        end
       end
     end
 
@@ -633,7 +811,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       and string.match(url, "%.html$") then
       if not string.match(html, "comments to this entry are closed")
         and not string.match(html, "/embed%.js%?asset_id=")
-        and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"") then
+        and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"")
+        and not string.match(html, "<input type=\"submit\" name=\"post\" id=\"comment%-post%-button\"")
+        and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$") then
         error("Unsupported comments methods found.")
       end
       local tpc_title = string.match(html, "<div[^>]+id=\"tpc_post_title\">(.-)</div>")
@@ -744,6 +924,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
           value = urlparse.escape(inner_value)
         end
         local extra_newurls = {}
+        if prev_value == "&ts=" or prev_value == "&message=" then
+          value = ""
+        end
         for i, newurl in pairs(newurls) do
           if string.match(prev_value, "[%?&]message=$")
             or string.match(prev_value, "[%?&]ts=$") then
@@ -775,6 +958,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       end
       check(moreurl)
     end
+    html = "text" .. html
     for newurl in string.gmatch(string.gsub(html, "&[qQ][uU][oO][tT];", '"'), '([^"]+)') do
       checknewurl(newurl)
     end
@@ -811,10 +995,22 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     error("No item name found.")
   end
   is_initial_url = false
+  if http_stat["statcode"] == 500
+    and item_type == "asset"
+    and string.match(url["url"], "%-[0-9]+[a-z][a-z]$") then
+    discover_item(discovered_items, "asset500:" .. string.match(url["url"], "^https?://(.+)$"))
+    retry_url = false
+    tries = 0
+    return false
+  end
   if http_stat["statcode"] ~= 200
     and http_stat["statcode"] ~= 301
     and http_stat["statcode"] ~= 302
-    and http_stat["statcode"] ~= 404 then
+    and http_stat["statcode"] ~= 404
+    and (
+      not string.match(url["url"], "^https?://[^/]+/t/rsd/")
+      or http_stat["statcode"] ~= 500
+    ) then
     retry_url = true
     return false
   end
@@ -931,8 +1127,8 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
   end
   file:close()
   for key, data in pairs({
-    ["typepad-"] = discovered_items,
-    ["urls-"] = discovered_outlinks
+    ["typepad-twsgkwlnvokoy991"] = discovered_items,
+    ["urls-9laax4qga25pjo8y"] = discovered_outlinks
   }) do
     print("queuing for", string.match(key, "^(.+)%-"))
     local items = nil
