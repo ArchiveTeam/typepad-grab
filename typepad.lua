@@ -811,7 +811,8 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         and not string.match(html, "/embed%.js%?asset_id=")
         and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"")
         and not string.match(html, "<input type=\"submit\" name=\"post\" id=\"comment%-post%-button\"")
-        and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$") then
+        and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$")
+        and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$") then
         error("Unsupported comments methods found.")
       end
       local tpc_title = string.match(html, "<div[^>]+id=\"tpc_post_title\">(.-)</div>")
@@ -945,16 +946,16 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       for _, newurl in pairs(newurls) do
         check(urlparse.absolute(url, newurl))
       end
-
       context["tpconnect"]["tpc_message"] = context["tpconnect"]["tpc_message_original"]
+
       local moreurl = string.match(html, "src=\"([^\"']+)'%s*%+%s*moreurl%s*%+%s*'\"")
       if moreurl then
         moreurl = moreurl .. "&color=" .. urlparse.escape("#444444") .. "&width=764"
+        if string.match(moreurl, "moreurl") then
+          error("Moreurl not correctly replaced.")
+        end
+        check(moreurl)
       end
-      if string.match(moreurl, "moreurl") then
-        error("Moreurl not correctly replaced.")
-      end
-      check(moreurl)
     end
     html = "text" .. html
     for newurl in string.gmatch(string.gsub(html, "&[qQ][uU][oO][tT];", '"'), '([^"]+)') do
@@ -995,7 +996,10 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   is_initial_url = false
   if http_stat["statcode"] == 500
     and item_type == "asset"
-    and string.match(url["url"], "%-[0-9]+[a-z][a-z]$") then
+    and (
+      string.match(url["url"], "%-[0-9]+[a-z][a-z]$")
+      or string.match(url["url"], "%-popup$")
+    ) then
     discover_item(discovered_items, "asset500:" .. string.match(url["url"], "^https?://(.+)$"))
     retry_url = false
     tries = 0
