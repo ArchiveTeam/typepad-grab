@@ -141,8 +141,7 @@ item_patterns = {
       if ending
         and ending ~= "pi"
         and ending ~= "popup"
-        and ending ~= "50si"
-        and not string.match(ending, "^[0-9]+[pw]i$") then
+        and not string.match(ending, "^[0-9]+[pws]i$") then
         error("Found unsupported asset " .. s .. ".")
       end
       if not temp then
@@ -703,12 +702,11 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       check(base)
       for _, s in pairs({
         "pi",
-        "popup",
-        "50si"
+        "popup"
       }) do
         check(base .. "-" .. s)
       end
-      for _, stype in pairs({"pi", "wi"}) do
+      for _, stype in pairs({"pi", "wi", "si"}) do
         for _, n in pairs(sizes[stype]) do
           check(base .. "-" .. tostring(n) .. stype)
         end
@@ -717,17 +715,17 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     local server, image_id = string.match(url, "^https?://([a-z]+)[0-9]?%.typepad%.com/([0-9a-f]+)")
     if (server == "a" or server == "up") and base then
       for i = 1 , 7 do
-        check("https://" .. server .. tostring(i) .. ".typepad.com/" .. base)
+        check("https://" .. server .. tostring(i) .. ".typepad.com/" .. image_id)
       end
     end
     if server == "up" then
       for _, s in pairs({
         "pi",
       }) do
-        check(urlparse.absolute(url, "/" .. base .. "-" .. s))
+        check(urlparse.absolute(url, "/" .. image_id .. "-" .. s))
       end
       for _, n in pairs(sizes["si"]) do
-        check(urlparse.absolute(url, "/" .. base .. "-" .. tostring(n) .. "si"))
+        check(urlparse.absolute(url, "/" .. image_id .. "-" .. tostring(n) .. "si"))
       end
     end
   end
