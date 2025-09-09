@@ -192,11 +192,13 @@ item_patterns = {
   ["^https?://(.+/photos/.-%.[^/%.%?&]+)$"]={
     ["type"]="asset",
     ["additional"]=function(s)
-      if string.match(s, "%.html%?") then
+      if string.match(s, "%.html?%?") then
         return nil
       end
       local extension = string.match(s, "%.([^/%.%?&]+)$")
-      if extension ~= "html" and get_domain_item(s) then
+      if extension ~= "html"
+        and extension ~= "htm"
+        and get_domain_item(s) then
         return {["value"]=s}
       end
     end
@@ -217,7 +219,7 @@ item_patterns = {
     ["type"]="asset",
     ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
   },
-  ["^https?://([^/]+/[^/%.%?&;=]+%.[0-9a-zA-Z]+)$"]={
+  ["^https?://([^/]+/.+%.[0-9a-zA-Z]+)$"]={
     ["type"]="asset",
     ["additional"]="^https?://(.+/photos/.-%.[^/%.%?&]+)$"
   },
@@ -406,6 +408,7 @@ allowed = function(url, parenturl)
     or string.match(url, "^https?://[^/]+/sitelogout")
     or string.match(url, "^https?://[^/]+/%.services/sitelogin")
     or string.match(url, "^https?://[^/]+/%.services/sitelogout")
+    or string.match(url, "%?no_prefetch=1$")
     or string.match(url, "%?cid=")
     or (
       (
