@@ -819,6 +819,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$") then
         error("Unsupported comments methods found.")
       end
+      local profile_s = string.match(html, "profile_module[^\"]*[%?&]user_id=([^&\"]+)")
+      if profile_s then
+        check("https://profile.typepad.com/" .. profile_s)
+      end
       local tpc_title = string.match(html, "<div[^>]+id=\"tpc_post_title\">(.-)</div>")
       local tpc_message = string.match(html, "<div[^>]+id=\"tpc_post_message\">(.-)</div>%s*<script")
       context["tpconnect"] = {}
