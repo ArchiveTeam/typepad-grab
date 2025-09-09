@@ -1101,7 +1101,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   if status_code >= 300 and status_code <= 399 then
     local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
-    if processed(newloc) or not allowed(newloc, url["url"]) then
+    if not allowed(newloc, url["url"]) or processed(newloc) then
       tries = 0
       return wget.actions.EXIT
     end
