@@ -584,6 +584,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if string.match(newurl, "image%.html%?.") then
       check(urlparse.absolute(newurl, string.match(newurl, "%?(.+)$")))
     end
+    if string.match(newurl, "%?no_prefetch=1$") then
+      check(string.match(newurl, "^(.+)%?")
+    end
     if not processed(url_)
       and not processed(url_ .. "/")
       and allowed(url_, origurl) then
