@@ -1062,6 +1062,9 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:flush()
     tries = tries + 1
     local maxtries = 20
+    if status_code == 503 then
+      maxtries = 10
+    end
     if tries > maxtries then
       io.stdout:write(" Skipping.\n")
       io.stdout:flush()
@@ -1069,9 +1072,13 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       abort_item()
       return wget.actions.EXIT
     end
+    local factor = 1.1
+    if status_code == 503 then
+      factor = 2
+    end
     local sleep_time = math.random(
-      math.floor(math.pow(1.1, tries-0.5)),
-      math.floor(math.pow(1.1, tries))
+      math.floor(math.pow(factor, tries-0.5)),
+      math.floor(math.pow(factor, tries))
     )
     io.stdout:write("Sleeping " .. sleep_time .. " seconds.\n")
     io.stdout:flush()
