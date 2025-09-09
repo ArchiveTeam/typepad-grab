@@ -263,7 +263,7 @@ item_patterns = {
         end
       end
       local blog = get_domain_item(s)
-      if not blog then
+      if not blog or blog == "profile" then
         return nil
       end
       local path = string.match(s, "^[^/]+/(.+)$")
