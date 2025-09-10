@@ -151,7 +151,11 @@ item_patterns = {
       end
       local image_id = string.match(s, "/([0-9a-f]+)%-?[0-9a-zA-Z]*$")
       if not image_id then
-        error("Image ID could not be extracted from " .. s .. ".")
+        print("Image ID could not be extracted from " .. s .. ".")
+        return {
+          ["value"]=s,
+          ["type"]="asset"
+        }
       end
       if context["image_id"] == image_id then
         return nil
@@ -571,19 +575,19 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     while string.find(url_, "&amp;") do
       url_ = string.gsub(url_, "&amp;", "&")
     end
-    if string.match(newurl, "/index%.html") then
-      check(string.match(newurl, "^(.+/)[^/]+$"))
+    if string.match(url_, "/index%.html") then
+      check(string.match(url_, "^(.+/)[^/]+$"))
     end
-    if string.match(newurl, ",") then
-      for s in string.gmatch(newurl, "([^,]+)") do
-        check(urlparse.absolute(newurl, s))
+    if string.match(url_, ",") then
+      for s in string.gmatch(url_, "([^,]+)") do
+        check(urlparse.absolute(url_, s))
       end
     end
-    if string.match(newurl, "image%.html%?.") then
-      check(urlparse.absolute(newurl, string.match(newurl, "%?(.+)$")))
+    if string.match(url_, "image%.html%?.") then
+      check(urlparse.absolute(url_, string.match(url_, "%?(.+)$")))
     end
-    if string.match(newurl, "%?no_prefetch=1$") then
-      check(string.match(newurl, "^(.+)%?"))
+    if string.match(url_, "%?no_prefetch=1$") then
+      check(string.match(url_, "^(.+)%?"))
     end
     if not processed(url_)
       and not processed(url_ .. "/")
