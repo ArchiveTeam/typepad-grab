@@ -596,7 +596,8 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         check(urlparse.absolute(base, s))
       end
     end
-    if string.match(url, ".%%20") then
+    if string.match(url_, ".%%20")
+      and not string.match(url_, "/thread%.js%?asset_id=") then
       local a, b = string.match(url_, "^(.-)%%20(.*)$")
       check(a)
       if string.len(b) > 0 then
