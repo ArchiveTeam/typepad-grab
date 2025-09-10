@@ -589,6 +589,18 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if string.match(url_, "%?no_prefetch=1$") then
       check(string.match(url_, "^(.+)%?"))
     end
+    if string.match(url_, "%s") then
+      for s in string.gmatch(url_, "([^%s]+)") do
+        check(urlparse.absolute(url_, s))
+      end
+    end
+    if string.match(url, ".%%20") then
+      local a, b = string.match(url_, "^(.-)%%20(.*)$")
+      check(a)
+      if string.len(b) > 0 then
+        check(urlparse.absolute(a, b))
+      end
+    end
     if not processed(url_)
       and not processed(url_ .. "/")
       and allowed(url_, origurl) then
