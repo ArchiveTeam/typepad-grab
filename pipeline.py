@@ -78,7 +78,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20250910.08'
+VERSION = '20250910.09'
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0'
 TRACKER_ID = 'typepad'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -309,6 +309,7 @@ class WgetArgs(object):
         get_site = lambda s: (s+'.typepad.com') if '.' not in s else s
 
         sites = set()
+        assets = {}
 
         for item_name in item['item_name'].split('\0'):
             wget_args.extend(['--warc-header', 'x-wget-at-project-item-name: '+item_name])
@@ -330,10 +331,11 @@ class WgetArgs(object):
                 wget_args.extend(['--warc-header', 'typepad-article-site: '+site])
                 wget_args.extend(['--warc-header', 'typepad-article-{}: {}'.format(site, path)])
                 wget_args.append('https://{}/{}'.format(site, path))
-            elif item_type == 'asset':
+            elif item_type in ('asset', 'asset2'):
                 url = 'https://' + item_value
                 wget_args.extend(['--warc-header', 'typepad-asset: '+url])
                 wget_args.append(url)
+                assets[url] = item_type
             elif item_type == 'profile':
                 wget_args.extend(['--warc-header', 'typepad-profile: '+item_value])
                 wget_args.append('https://profile.typepad.com/'+item_value)
@@ -356,6 +358,7 @@ class WgetArgs(object):
         wget_args.extend(['--domains', ','.join(sorted(sites))])
 
         item['item_name_newline'] = item['item_name'].replace('\0', '\n')
+        item['assets'] = json.dumps(assets)
 
         if 'bind_address' in globals():
             wget_args.extend(['--bind-address', globals()['bind_address']])
@@ -395,7 +398,8 @@ pipeline = Pipeline(
             'item_names': ItemValue('item_name_newline'),
             'warc_file_base': ItemValue('warc_file_base'),
             'concurrency': ItemValue('concurrency'),
-            'sites': ItemValue('sites')
+            'sites': ItemValue('sites'),
+            'assets': ItemValue('assets')
         }
     ),
     SetBadUrls(),

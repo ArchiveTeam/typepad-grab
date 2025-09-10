@@ -24,8 +24,10 @@ local logged_response = false
 
 local discovered_outlinks = {}
 local discovered_items = {}
+local discovered_extra_items = {}
 local bad_items = {}
 local ids = {}
+local context = {}
 
 local retry_url = false
 local is_initial_url = true
@@ -34,6 +36,7 @@ local sites = {}
 for _, site in pairs(cjson.decode(os.getenv("sites"))) do
   sites[site] = true
 end
+local assets = cjson.decode(os.getenv("assets"))
 
 local sizes = {
   ["pi"] = {50, 75, 115, 120, 200, 320, 350, 500, 640, 800, 1024, 1200, 2000},
@@ -103,6 +106,10 @@ processed = function(url)
 end
 
 discover_item = function(target, item)
+  local temp = string.match(item, "^(asset2:.+)%-[0-9a-z]+$")
+  if temp then
+    discover_item(discovered_extra_items, temp)
+  end
   if not target[item] then
 --print("discovered", item)
     target[item] = true
@@ -135,59 +142,40 @@ item_patterns = {
     end
   },
   ["^https?://([^/]+/%.a/.+)$"]={
-    ["type"]="asset",
+    ["type"]="asset2",
     ["additional"]=function(s)
-      local temp, ending = string.match(s, "^([^/]+/%.a/[0-9a-f]+)%-([0-9a-zA-Z]+)$")
+      local temp, ending = string.match(s, "^(.+/[0-9a-f]+)%-([0-9a-zA-Z]+)$")
       if ending
-        and ending ~= "pi"
-        and ending ~= "popup"
-        and not string.match(ending, "^[0-9]+[pws]i$") then
-        error("Found unsupported asset " .. s .. ".")
-      end
-      if not temp then
-        temp = string.match(s, "^([^/]+/%.a/[0-9a-f]+)$")
-      end
-      if temp then
+        and ending == "pi" then
         s = temp
       end
+      local image_id = string.match(s, "/([0-9a-f]+)%-?[0-9a-zA-Z]*$")
+      if not image_id then
+        error("Image ID could not be extracted from " .. s .. ".")
+      end
+      if context["image_id"] == image_id then
+        return nil
+      end
+      server_name, rest = string.match(s, "^([a-z]+)[0-9]*(%.typepad%.com/.+)$")
+      if server_name == "a" or server_name == "up" then
+        s = server_name .. "1" .. rest
+      end
       if get_domain_item(s) then
-        return {["value"]=s}
+        return {
+          ["value"]=s,
+          ["image_id"]=image_id,
+          ["extra_ids"]={image_id}
+        }
       end
     end
   },
   ["^https?://(up[0-9]?%.typepad%.com/.+)$"]={
-    ["type"]="asset",
-    ["additional"]=function(s)
-      local temp = string.match(s, "^[^/]+/([0-9a-f]+)%-[0-9a-zA-Z]+$")
-      if not temp then
-        temp = string.match(s, "^[^/]+/([0-9a-f]+)$")
-      end
-      local server_name = string.match(s, "^([a-z]+)")
-      local ending = string.match(s, "%-([0-9a-z]+)$")
-      if ending
-        and (
-          (
-            server_name == "up"
-            and ending ~= "pi"
-            and not string.match(ending, "^[0-9]+si$")
-          )
-          or (
-            server_name == "a"
-            and ending ~= "pi"
-            and ending ~= "popup"
-            and not string.match(ending, "^[0-9]+[pw]i$")
-          )
-        ) then
-        error("Found unsupported asset " .. s .. ".")
-      end
-      if temp then
-        return {["value"]=server_name .. "1.typepad.com/" .. temp}
-      end
-    end
+    ["type"]="asset2",
+    ["additional"]="^https?://([^/]+/%.a/.+)$"
   },
   ["^https?://(a[0-9]?%.typepad%.com/.+)$"]={
-    ["type"]="asset",
-    ["additional"]="^https?://(up[0-9]?%.typepad%.com/.+)$"
+    ["type"]="asset2",
+    ["additional"]="^https?://([^/]+/%.a/.+)$"
   },
   ["^https?://(.+/photos/.-%.[^/%.%?&]+)$"]={
     ["type"]="asset",
@@ -331,7 +319,9 @@ get_item_data = function(url, pattern, pattern_data)
   end
   local data = pattern_data["additional"](value)
   if data then
-    data["type"] = pattern_data["type"]
+    if not data["type"] then
+      data["type"] = pattern_data["type"]
+    end
     return data
   end
 end
@@ -352,6 +342,10 @@ set_item = function(url)
   found = find_item(url)
   if found then
     local newcontext = {}
+    if (found["type"] == "asset" or found["type"] == "asset2")
+      and assets[url] then
+      found["type"] = assets[url]
+    end
     new_item_type = found["type"]
     new_item_value = found["value"]
     for k, v in pairs(found) do
@@ -360,7 +354,11 @@ set_item = function(url)
       end
     end
     new_item_name = new_item_type .. ":" .. new_item_value
-    if new_item_name ~= item_name then
+    if new_item_name ~= item_name
+      and (
+        not found["image_id"]
+        or found["image_id"] ~= context["image_id"]
+      ) then
       ids = {}
       context = newcontext
       item_value = new_item_value
@@ -700,6 +698,24 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     return count
   end
 
+  if item_type == "asset2" then
+    if status_code == 200 then
+      local server, rest = string.match(url, "^https?://([a-z]+)[0-9]?(%.typepad%.com/.+)")
+      if (server == "a" or server == "up") and rest then
+        for i = 1 , 7 do
+          check("https://" .. server .. tostring(i) .. rest)
+        end
+      end
+    end
+    if string.match(item_value, "/[0-9a-f]+$") then
+      check(urlparse.absolute(url, string.match(item_value, "^[^/]+(/.+)$") .. "-pi"))
+      check(urlparse.absolute(url, string.match(item_value, "^[^/]+(/.+)$")))
+    end
+    if string.match(url, "/[0-9a-f]+$") then
+      check(url .. "-pi")
+    end
+  end
+
   if item_type == "asset" then
     local base = string.match(url, "^(https?://[^/]+/%.a/[0-9a-f]+)")
     if not base then
@@ -720,7 +736,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       end
     end
     local server, image_id = string.match(url, "^https?://([a-z]+)[0-9]?%.typepad%.com/([0-9a-f]+)")
-    if (server == "a" or server == "up") and base then
+    if (server == "a" or server == "up") and image_id then
       for i = 1 , 7 do
         check("https://" .. server .. tostring(i) .. ".typepad.com/" .. image_id)
       end
@@ -769,7 +785,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   if allowed(url)
     and status_code < 300
     and (
-      item_type ~= "asset"
+      (item_type ~= "asset" and item_type ~= "asset2")
       or string.match(url, "%-popup$")
     )
     and not string.match(url, "%.jpg$")
@@ -1148,6 +1164,7 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
   file:close()
   for key, data in pairs({
     ["typepad-twsgkwlnvokoy991"] = discovered_items,
+    ["typepad-extra-2t83qhi02ad58rm6"] = discovered_extra_items,
     ["urls-9laax4qga25pjo8y"] = discovered_outlinks
   }) do
     print("queuing for", string.match(key, "^(.+)%-"))
