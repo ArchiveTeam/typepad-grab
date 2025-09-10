@@ -1093,7 +1093,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned bad response. ")
     io.stdout:flush()
     tries = tries + 1
-    local maxtries = 3
+    local maxtries = 6
     if status_code == 503 then
       maxtries = 10
     elseif status_code == 403 then
@@ -1106,9 +1106,9 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       abort_item()
       return wget.actions.EXIT
     end
-    local factor = 1.1
-    if status_code == 503 then
-      factor = 2
+    local factor = 2
+    if status_code == 403 then
+      factor = 1.1
     end
     local sleep_time = math.random(
       math.floor(math.pow(factor, tries-0.5)),
