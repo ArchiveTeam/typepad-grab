@@ -579,8 +579,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       check(string.match(url_, "^(.+/)[^/]+$"))
     end
     if string.match(url_, ",") then
+      local base = string.match(url_, "^([^,]+)")
       for s in string.gmatch(url_, "([^,]+)") do
-        check(urlparse.absolute(url_, s))
+        check(urlparse.absolute(base, s))
       end
     end
     if string.match(url_, "image%.html%?.") then
@@ -590,8 +591,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       check(string.match(url_, "^(.+)%?"))
     end
     if string.match(url_, "%s") then
+      local base = string.match(url_, "^([^%s]+)")
       for s in string.gmatch(url_, "([^%s]+)") do
-        check(urlparse.absolute(url_, s))
+        check(urlparse.absolute(base, s))
       end
     end
     if string.match(url, ".%%20") then
