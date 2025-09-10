@@ -850,6 +850,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if item_type == "article"
       and string.match(url, "%.html$") then
       if not string.match(html, "comments to this entry are closed")
+        and not string.match(html, "comments powered by Disqus")
         and not string.match(html, "/embed%.js%?asset_id=")
         and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"")
         and not string.match(html, "<input type=\"submit\" name=\"post\" id=\"comment%-post%-button\"")
@@ -858,8 +859,11 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         and string.match(string.gsub(html, "<h4><a id=\"comments\"></a>Comments</h4>", ""), "[cC]omments")
         and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$")
         and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$")
+        and not string.match(url, "^https?://[^/]+/[^/]*/?archives%.html$")
         and string.match(html, "[cC]omments") then
-        error("Unsupported comments methods found.")
+        print("Unsupported comments methods found.")
+        abort_item()
+        return {}
       end
       local profile_s = string.match(html, "profile_module[^\"]*[%?&]user_id=([^&\"]+)")
       if profile_s then
