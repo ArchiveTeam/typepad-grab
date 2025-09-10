@@ -834,8 +834,12 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         and not string.match(html, "/embed%.js%?asset_id=")
         and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"")
         and not string.match(html, "<input type=\"submit\" name=\"post\" id=\"comment%-post%-button\"")
+        and not string.match(html, "<p class=\"comments%-closed")
+        and not string.match(html, "action=\"https://www%.typepad%.com/t/comments\" name=\"comments_form\"")
+        and string.match(string.gsub(html, "<h4><a id=\"comments\"></a>Comments</h4>", ""), "[cC]omments")
         and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$")
-        and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$") then
+        and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$")
+        and string.match(html, "[cC]omments") then
         error("Unsupported comments methods found.")
       end
       local profile_s = string.match(html, "profile_module[^\"]*[%?&]user_id=([^&\"]+)")
@@ -1085,9 +1089,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned bad response. ")
     io.stdout:flush()
     tries = tries + 1
-    local maxtries = 20
+    local maxtries = 3
     if status_code == 503 then
       maxtries = 10
+    elseif status_code == 403 then
+      maxtries = 20
     end
     if tries > maxtries then
       io.stdout:write(" Skipping.\n")
@@ -1171,7 +1177,7 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
     local items = nil
     local count = 0
     for item, _ in pairs(data) do
-      print("found item", item)
+      --print("found item", item)
       if items == nil then
         items = item
       else
