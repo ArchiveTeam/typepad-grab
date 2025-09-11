@@ -1095,7 +1095,6 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if http_stat["statcode"] ~= 200
     and http_stat["statcode"] ~= 301
     and http_stat["statcode"] ~= 302
-    and http_stat["statcode"] ~= 404
     and (
       not string.match(url["url"], "^https?://[^/]+/t/rsd/")
       or http_stat["statcode"] ~= 500
