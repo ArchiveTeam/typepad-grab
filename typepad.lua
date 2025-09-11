@@ -345,7 +345,7 @@ end
 set_item = function(url)
   found = find_item(url)
   if found then
-    local newcontext = {}
+    local newcontext = {["outlinks"]={}}
     if (found["type"] == "asset" or found["type"] == "asset2")
       and assets[url] then
       found["type"] = assets[url]
@@ -459,6 +459,16 @@ allowed = function(url, parenturl)
   end
 
   if not get_domain_item(url) then
+    if not context["found_domains"] then
+      if not context["outlinks"][url] then
+        context["outlinks"][url] = {}
+      end
+      local parent_temp = parenturl
+      if not parent_temp then
+        parent_temp = "no_parent"
+      end
+      context["outlinks"][url][parent_temp] = true
+    end
     discover_item(discovered_outlinks, string.match(percent_encode_url(url), "^([^%s]+)"))
     return false
   end
@@ -844,6 +854,29 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         if not found then
           error("Could not find a blog ID.")
         end
+      end
+    end
+
+    if item_type == "blog"
+      and string.match(url, "/services/rsd/") then
+      local homepage = string.match(html, "<homePageLink>%s*https?://([^</%s]+)")
+      if homepage then
+        local match = string.match(homepage, "^www%.(.+)")
+        if match then
+          homepage = match
+        end
+        sites[homepage] = true
+        for newurl, parents in pairs(context["outlinks"]) do
+          discovered_outlinks[newurl] = nil
+          for parent_url, _ in pairs(parents) do
+            if parent_url == "no_parent" then
+              parent_url = nil
+            end
+            allowed(newurl, parent_url)
+          end
+        end
+        context["found_domains"] = true
+        context["outlinks"] = "finished"
       end
     end
 
