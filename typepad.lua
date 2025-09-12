@@ -857,6 +857,14 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       end
     end
 
+    if (item_type == "blog" or item_type == "article")
+      and (string.match(url, "%.html$") or string.match(url, "/$"))
+      and not string.match(html, "typepad") then
+      print("Likely not a typepad page.")
+      abort_item()
+      return {}
+    end
+
     if item_type == "blog"
       and string.match(url, "/services/rsd/") then
       local homepage = string.match(html, "<homePageLink>%s*https?://([^</%s]+)")
@@ -1226,7 +1234,7 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
   for key, data in pairs({
     ["typepad-twsgkwlnvokoy991"] = discovered_items,
     ["typepad-extra-2t83qhi02ad58rm6"] = discovered_extra_items,
-    ["urls-9laax4qga25pjo8y"] = discovered_outlinks
+    ["urls-stash-typepad-s8yea0sk2d7u7hms"] = discovered_outlinks
   }) do
     print("queuing for", string.match(key, "^(.+)%-"))
     local items = nil
