@@ -859,6 +859,8 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
     if (item_type == "blog" or item_type == "article")
       and (string.match(url, "%.html$") or string.match(url, "/$"))
+      and not string.match(url, "/feed/$")
+      and not string.match(url, "%.html%?")
       and not string.match(html, "typepad") then
       print("Likely not a typepad page.")
       abort_item()
@@ -899,7 +901,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         and not string.match(html, "action=\"https://www%.typepad%.com/t/comments\" name=\"comments_form\"")
         and string.match(string.gsub(html, "<h4><a id=\"comments\"></a>Comments</h4>", ""), "[cC]omments")
         and not string.match(url, "^https?://[^/]+/photos/[^/]+/[^%./]+%.html$")
-        and not string.match(url, "/20[012][0-9]/[01][0-9]/index%.html$")
+        and not string.match(url, "/index%.html$")
         and not string.match(url, "^https?://[^/]+/[^/]*/?archives%.html$")
         and string.match(html, "[cC]omments") then
         print("Unsupported comments methods found.")
@@ -1152,11 +1154,14 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned bad response. ")
     io.stdout:flush()
     tries = tries + 1
-    local maxtries = 6
+    local maxtries = 4
     if status_code == 503 then
       maxtries = 10
     elseif status_code == 403 then
       maxtries = 20
+    elseif status_code == 404
+      or status_code == 200 then
+      tries = maxtries + 1
     end
     if tries > maxtries then
       io.stdout:write(" Skipping.\n")
