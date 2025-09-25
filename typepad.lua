@@ -36,6 +36,10 @@ local sites = {}
 for _, site in pairs(cjson.decode(os.getenv("sites"))) do
   sites[site] = true
 end
+local maybesites = {}
+for _, site in pairs(cjson.decode(os.getenv("maybesites"))) do
+  maybesites[site] = true
+end
 local assets = cjson.decode(os.getenv("assets"))
 
 local sizes = {
@@ -45,15 +49,15 @@ local sizes = {
   ["si"] = {16, 20, 50, 75, 115, 120, 150, 220, 250},
 }
 
-site_included = function(domain)
+site_included = function(domain, siteslist)
   local temp = string.match(domain, "^www%.(.+)$")
   if temp then
     domain = temp
   end
-  return sites[domain]
+  return siteslist[domain]
 end
 
-get_domain_item = function(domain)
+get_domain_item = function(domain, siteslist)
   local temp = string.match(domain, "^https?://(.+)$")
   if temp then
     domain = temp
@@ -63,7 +67,7 @@ get_domain_item = function(domain)
   if temp then
     return temp
   end
-  if not site_included(domain) then
+  if not site_included(domain, siteslist) then
     return nil
   end
   return domain
@@ -135,7 +139,7 @@ item_patterns = {
         or s == "profile.typepad.com" then
         return nil
       end
-      local domain_item = get_domain_item(s)
+      local domain_item = get_domain_item(s, sites)
       if domain_item then
         return {["value"]=domain_item}
       end
@@ -164,7 +168,7 @@ item_patterns = {
       if server_name == "a" or server_name == "up" then
         s = server_name .. "1" .. rest
       end
-      if get_domain_item(s) then
+      if get_domain_item(s, sites) then
         return {
           ["value"]=s,
           ["image_id"]=image_id,
@@ -190,7 +194,7 @@ item_patterns = {
       local extension = string.match(s, "%.([^/%.%?&]+)$")
       if extension ~= "html"
         and extension ~= "htm"
-        and get_domain_item(s) then
+        and get_domain_item(s, sites) then
         return {["value"]=s}
       end
     end
@@ -221,7 +225,7 @@ item_patterns = {
       if string.match(s, "^[^/]+/%.shared/image%.html") then
         return nil
       end
-      if get_domain_item(s) then
+      if get_domain_item(s, sites) then
         return {["value"]=s}
       end
     end
@@ -256,7 +260,7 @@ item_patterns = {
           break
         end
       end
-      local blog = get_domain_item(s)
+      local blog = get_domain_item(s, sites)
       if not blog or blog == "profile" then
         return nil
       end
@@ -271,7 +275,17 @@ item_patterns = {
         ["blog"]=blog
       }
     end
-  }
+  },
+  ["^https?://([^/]+)//?$"]={
+    ["type"]="maybeblog",
+    ["additional"]=function(s)
+      if get_domain_item(s, sites)
+        or not get_domain_item(s, maybesites) then
+        return nil
+      end
+      return {["value"]=s}
+    end
+  },
 }
 for pattern, data in pairs(item_patterns) do
   if type(data) == "string" then
@@ -296,7 +310,8 @@ extraction_patterns = {
     ["type"]="maybeblog",
     ["additional"]=function(s)
       if string.match(s, "^[^/%.]+%.typepad%.com$")
-        or s == context["blog"] then
+        or s == context["blog"]
+        or item_type == "maybeblog" then
         return nil
       end
       return {["value"]=s}
@@ -458,7 +473,8 @@ allowed = function(url, parenturl)
     return false
   end
 
-  if not get_domain_item(url) then
+  if not get_domain_item(url, sites)
+    and not get_domain_item(url, maybesites) then
     if not context["found_domains"] then
       if not context["outlinks"][url] then
         context["outlinks"][url] = {}
@@ -473,8 +489,12 @@ allowed = function(url, parenturl)
     return false
   end
 
-  if get_domain_item(url) then
+  if get_domain_item(url, sites)
+    or get_domain_item(url, maybesites) then
     local path = string.match(url, "^https?://[^/]+/(.*)$")
+    if string.len(path) > 0 and item_type == "maybeblog" then
+      return false
+    end
     if path and ids[string.lower(path)] then
       return true
     end
@@ -857,6 +877,14 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       end
     end
 
+    if item_type == "maybeblog" then
+      if string.match(html, "\"https?://[^/]+typepad%.com/t/stats%?") then
+        discover_item(discovered_items, "blog:" .. item_value)
+      else
+        return {}
+      end
+    end
+
     if (item_type == "blog" or item_type == "article")
       and (string.match(url, "%.html$") or string.match(url, "/$"))
       and not string.match(url, "/feed/$")
@@ -1155,7 +1183,9 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:flush()
     tries = tries + 1
     local maxtries = 4
-    if status_code == 503 then
+    if item_type == "maybeblog" then
+      tries = maxtries + 1
+    elseif status_code == 503 then
       maxtries = 10
     elseif status_code == 403 then
       maxtries = 20

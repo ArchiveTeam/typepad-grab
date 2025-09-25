@@ -78,7 +78,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20250925.01'
+VERSION = '20250925.02'
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0'
 TRACKER_ID = 'typepad'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -311,6 +311,7 @@ class WgetArgs(object):
         get_site = lambda s: (s+'.typepad.com') if '.' not in s else s
 
         sites = set()
+        maybesites = set()
         assets = {}
 
         for item_name in item['item_name'].split('\0'):
@@ -321,10 +322,9 @@ class WgetArgs(object):
                 site = get_site(item_value)
                 wget_args.extend(['--warc-header', 'typepad-blog: '+site])
                 wget_args.append('https://{}/'.format(site))
-            #elif item_type == 'maybeblog':
-            #    raise ValueError('Not supported yet.')
-            #    wget_args.extend(['--warc-header', 'typepad-maybeblog: '+item_value])
-            #    wget_args.append('https://{}/'.format(item_value))
+            elif item_type == 'maybeblog':
+                wget_args.extend(['--warc-header', 'typepad-maybeblog: '+item_value])
+                wget_args.append('https://{}/'.format(item_value))
             #elif item_type == 'userid':
             #elif item_type == 'asset500':
             elif item_type == 'article':
@@ -346,9 +346,13 @@ class WgetArgs(object):
             site = wget_args[-1].split('/')[2]
             if site.startswith('www.'):
                 site = site.split('.', 1)[1]
-            sites.add(site)
+            if item_type == 'maybeblog':
+                maybesites.add(site)
+            else:
+                sites.add(site)
 
         item['sites'] = json.dumps(sorted(sites))
+        item['maybesites'] = json.dumps(sorted(maybesites))
 
         sites |= {
             'typepad.com',
@@ -401,6 +405,7 @@ pipeline = Pipeline(
             'warc_file_base': ItemValue('warc_file_base'),
             'concurrency': ItemValue('concurrency'),
             'sites': ItemValue('sites'),
+            'maybesites': ItemValue('maybesites'),
             'assets': ItemValue('assets')
         }
     ),
