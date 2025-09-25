@@ -492,7 +492,7 @@ allowed = function(url, parenturl)
   if get_domain_item(url, sites)
     or get_domain_item(url, maybesites) then
     local path = string.match(url, "^https?://[^/]+/(.*)$")
-    if string.len(path) > 0 and item_type == "maybeblog" then
+    if path and string.len(path) > 0 and item_type == "maybeblog" then
       return false
     end
     if path and ids[string.lower(path)] then
