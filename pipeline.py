@@ -78,7 +78,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20250926.01'
+VERSION = '20250926.02'
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0'
 TRACKER_ID = 'typepad'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -171,6 +171,8 @@ def normalize_string(s):
         s = temp
     if s.startswith('blog:') and s.endswith('.typepad.com'):
         s = s.rsplit('.', 2)[0]
+    if s.startswith('maybeblog:'):
+        s = re.search(r'^(maybeblog:[0-9a-zA-Z-_\.]+)', s).group(1)
     return s
 
 
@@ -323,6 +325,7 @@ class WgetArgs(object):
                 wget_args.extend(['--warc-header', 'typepad-blog: '+site])
                 wget_args.append('https://{}/'.format(site))
             elif item_type == 'maybeblog':
+                item_value = re.search(r'^([0-9a-zA-Z-_\.]+)', item_value).group(1)
                 wget_args.extend(['--warc-header', 'typepad-maybeblog: '+item_value])
                 wget_args.append('https://{}/'.format(item_value))
             #elif item_type == 'userid':

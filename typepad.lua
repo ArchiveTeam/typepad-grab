@@ -1119,6 +1119,14 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     error("No item name found.")
   end
   is_initial_url = false
+  if item_type["statcode"] ~= 503
+    and item_type["statcode"] ~= 403
+    and item_type["statcode"] ~= 429
+    and item_type == "maybeblog" then
+    retry_url = false
+    tries = 0
+    return true
+  end
   if http_stat["statcode"] == 500
     and item_type == "asset"
     and (
