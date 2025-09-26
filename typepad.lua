@@ -920,7 +920,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
     if item_type == "article"
       and string.match(url, "%.html$") then
-      if not string.match(html, "comments to this entry are closed")
+      --[[if not string.match(html, "comments to this entry are closed")
         and not string.match(html, "comments powered by Disqus")
         and not string.match(html, "/embed%.js%?asset_id=")
         and not string.match(html, "for=\"jp%-carousel%-comment%-form%-author%-field\"")
@@ -935,7 +935,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         print("Unsupported comments methods found.")
         abort_item()
         return {}
-      end
+      end]]
       local profile_s = string.match(html, "profile_module[^\"]*[%?&]user_id=([^&\"]+)")
       if profile_s then
         check("https://profile.typepad.com/" .. profile_s)
@@ -1133,6 +1133,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if http_stat["statcode"] ~= 200
     and http_stat["statcode"] ~= 301
     and http_stat["statcode"] ~= 302
+    and http_stat["statcode"] ~= 404
     and (
       not string.match(url["url"], "^https?://[^/]+/t/rsd/")
       or http_stat["statcode"] ~= 500
