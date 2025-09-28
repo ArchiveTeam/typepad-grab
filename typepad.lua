@@ -1128,7 +1128,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     return true
   end
   if http_stat["statcode"] == 500
-    and item_type == "asset"
+    and (item_type == "asset" or item_type == "asset500")
     and (
       string.match(url["url"], "%-[0-9]+[a-z][a-z]$")
       or string.match(url["url"], "%-popup$")
@@ -1136,6 +1136,9 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     discover_item(discovered_items, "asset500:" .. string.match(url["url"], "^https?://(.+)$"))
     retry_url = false
     tries = 0
+    if item_type == "asset500" then
+      abort_item()
+    end
     return false
   end
   if http_stat["statcode"] ~= 200

@@ -78,7 +78,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20250926.02'
+VERSION = '20250928.01'
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0'
 TRACKER_ID = 'typepad'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -171,8 +171,10 @@ def normalize_string(s):
         s = temp
     if s.startswith('blog:') and s.endswith('.typepad.com'):
         s = s.rsplit('.', 2)[0]
-    if s.startswith('maybeblog:'):
+    elif s.startswith('maybeblog:'):
         s = re.search(r'^(maybeblog:[0-9a-zA-Z-_\.]+)', s).group(1)
+    elif s.startswith('asset500:'):
+        s = 'asset2:' + s.split(':', 1)[1]
     return s
 
 
@@ -329,14 +331,13 @@ class WgetArgs(object):
                 wget_args.extend(['--warc-header', 'typepad-maybeblog: '+item_value])
                 wget_args.append('https://{}/'.format(item_value))
             #elif item_type == 'userid':
-            #elif item_type == 'asset500':
             elif item_type == 'article':
                 site, path = item_value.split(':', 1)
                 site = get_site(site)
                 wget_args.extend(['--warc-header', 'typepad-article-site: '+site])
                 wget_args.extend(['--warc-header', 'typepad-article-{}: {}'.format(site, path)])
                 wget_args.append('https://{}/{}'.format(site, path))
-            elif item_type in ('asset', 'asset2'):
+            elif item_type in ('asset', 'asset2', 'asset500'):
                 url = 'https://' + item_value
                 wget_args.extend(['--warc-header', 'typepad-asset: '+url])
                 wget_args.append(url)
