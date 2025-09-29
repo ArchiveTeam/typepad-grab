@@ -361,7 +361,7 @@ set_item = function(url)
   found = find_item(url)
   if found then
     local newcontext = {["outlinks"]={}}
-    if (found["type"] == "asset" or found["type"] == "asset2")
+    if string.match(found["type"], "^asset")
       and assets[url] then
       found["type"] = assets[url]
     end
@@ -834,7 +834,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   if allowed(url)
     and status_code < 300
     and (
-      (item_type ~= "asset" and item_type ~= "asset2")
+      not string.match(item_type, "^asset")
       or string.match(url, "%-popup$")
     )
     and not string.match(url, "%.jpg$")
