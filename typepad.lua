@@ -641,6 +641,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       and not processed(url_ .. "/")
       and allowed(url_, origurl) then
       local headers = {}
+      if string.match(url_, "^https?://profile%.typepad%.com/services/") then
+        headers["Referer"] = ""
+      end
       table.insert(urls, {
         url=url_,
         headers=headers
@@ -944,6 +947,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         check("https://profile.typepad.com/" .. profile_s)
       end
       local tpc_title = string.match(html, "<div[^>]+id=\"tpc_post_title\">(.-)</div>")
+      if not tpc_title then
+        tpc_title = ""
+      end
       local tpc_message = string.match(html, "<div[^>]+id=\"tpc_post_message\">(.-)</div>%s*<script")
       context["tpconnect"] = {}
       for k, v in string.gmatch(html, "TPConnect%.([a-z0-9_]+)%s*=%s*(.-)%s*;%s") do
@@ -1017,7 +1023,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         context["tpconnect"][k] = v
       end
 
-      local message = context["tpconnect"]["tpc_message"]
+      --[[local message = context["tpconnect"]["tpc_message"]
       local max_message_length = tonumber(string.match(html, "if%(tpe_message%.length > ([0-9]+)%)"))
       assert(max_message_length>0)
       if utf8.len(message) > max_message_length then
@@ -1032,7 +1038,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         message = utf8.sub(message, 1, max_message_length)
       end
       context["tpconnect"]["tpc_message_original"] = context["tpconnect"]["tpc_message"]
-      context["tpconnect"]["tpc_message"] = message
+      context["tpconnect"]["tpc_message"] = message]]
 
       local make_url_data = string.match(html, "tpe_script%.src%s*=%s*(TPConnect%.embed_src.-;)")
       local newurls = {""}
