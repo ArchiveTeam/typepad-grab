@@ -78,7 +78,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20250929.01'
+VERSION = '20250930.01'
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0'
 TRACKER_ID = 'typepad'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -312,7 +312,10 @@ class WgetArgs(object):
                 concurrency = 2
         item['concurrency'] = str(concurrency)
 
-        get_site = lambda s: (s+'.typepad.com') if '.' not in s else s
+        get_site = lambda s: \
+            (s+'.typepad.com') \
+            if '.' not in (s.split('.', 1)[1] if s.startswith('www.') else s) \
+            else s
 
         sites = set()
         maybesites = set()
@@ -324,6 +327,10 @@ class WgetArgs(object):
             item_type, item_value = item_name.split(':', 1)
             if item_type == 'blog':
                 site = get_site(item_value)
+                if site.endswith('.typepad.com') \
+                    and site.startswith('www.') \
+                    and site.count('.') > 2:
+                    site = site.split('.', 1)[1]
                 wget_args.extend(['--warc-header', 'typepad-blog: '+site])
                 wget_args.append('https://{}/'.format(site))
             elif item_type == 'maybeblog':
@@ -348,6 +355,7 @@ class WgetArgs(object):
             else:
                 raise Exception('Unknown item')
             site = wget_args[-1].split('/')[2]
+            print(wget_args[-1])
             if site.startswith('www.'):
                 site = site.split('.', 1)[1]
             if item_type == 'maybeblog':

@@ -606,7 +606,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       url_ = string.gsub(url_, "&amp;", "&")
     end
     if string.match(url_, "/index%.html") then
-      check(string.match(url_, "^(.+/)[^/]+$"))
+      local newurl = string.match(url_, "^(.+/)[^/]+$")
+      if newurl then
+        check(newurl)
+      end
     end
     if string.match(url_, ",") then
       local base = string.match(url_, "^([^,]+)")
